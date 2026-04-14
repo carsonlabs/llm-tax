@@ -1,0 +1,45 @@
+{
+  "name": "llm-tax",
+  "version": "1.0.0",
+  "description": "Scan your codebase and find out how much money you're wasting feeding bloated API responses to LLMs",
+  "type": "module",
+  "bin": {
+    "llm-tax": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "llm",
+    "tokens",
+    "cost",
+    "api",
+    "optimization",
+    "ai-agents",
+    "waste",
+    "scanner",
+    "cli"
+  ],
+  "author": "Freedom Engineers <hello@freedomengineers.tech>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carsonlabs/llm-tax"
+  },
+  "homepage": "https://github.com/carsonlabs/llm-tax",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
