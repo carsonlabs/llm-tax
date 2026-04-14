@@ -4,12 +4,12 @@
   "description": "Scan your codebase and find out how much money you're wasting feeding bloated API responses to LLMs",
   "type": "module",
   "bin": {
-    "llm-tax": "./dist/cli.js"
+    "llm-tax": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
-    "prepublishOnly": "npm run build"
+    "prepack": "npm run build"
   },
   "keywords": [
     "llm",
