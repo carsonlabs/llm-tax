@@ -126,19 +126,33 @@ export function printSummary(summary: TaxSummary): void {
   console.log();
 
   // Worst offender callout
+  let worstUrl: string | null = null;
   if (summary.reports.length > 0) {
     const worst = summary.reports[0];
+    worstUrl = worst.url;
     console.log(`  ${c.bgRed}${c.white}${c.bold} WORST OFFENDER ${c.reset} ${c.bold}${worst.method} ${truncate(worst.url, 40)}${c.reset}`);
     console.log(`  ${c.red}${worst.wastePercent}% waste — ${worst.wastedTokens} tokens thrown away per call${c.reset}`);
     console.log();
   }
 
-  // CTA
+  // CTA — sharp, specific, with a one-line fix
   console.log(`  ${c.dim}${"─".repeat(60)}${c.reset}`);
-  console.log(`  ${c.cyan}${c.bold}Fix it:${c.reset} ${c.cyan}selfheal.dev/docs#normalization${c.reset}`);
-  console.log(`  ${c.dim}SelfHeal normalizes API responses to your target schema.${c.reset}`);
-  console.log(`  ${c.dim}Already compliant? Free. Needs normalization? $0.001 USDC.${c.reset}`);
-  console.log(`  ${c.dim}Only charged when it delivers value.${c.reset}`);
+  console.log(`  ${c.bold}${c.cyan}Fix this in 1 line${c.reset} ${c.dim}→${c.reset} ${c.cyan}https://selfheal.dev/llm-tax${c.reset}`);
+  console.log();
+  if (worstUrl) {
+    console.log(`  ${c.dim}# Before:${c.reset}`);
+    console.log(`  ${c.dim}fetch("${truncate(worstUrl, 40)}")${c.reset}`);
+    console.log();
+    console.log(`  ${c.dim}# After (proxy through SelfHeal, normalize to just what you need):${c.reset}`);
+    console.log(`  ${c.green}fetch("https://selfheal.dev/api/proxy", {${c.reset}`);
+    console.log(`  ${c.green}  method: "POST",${c.reset}`);
+    console.log(`  ${c.green}  headers: { "X-Destination-URL": "${truncate(worstUrl, 30)}" },${c.reset}`);
+    console.log(`  ${c.green}  body: JSON.stringify({ target_schema: { /* fields you actually use */ } })${c.reset}`);
+    console.log(`  ${c.green}})${c.reset}`);
+    console.log();
+  }
+  console.log(`  ${c.dim}Pay-per-fix in USDC ($0.001), or $29/mo flat for teams.${c.reset}`);
+  console.log(`  ${c.dim}Already compliant? Free pass-through. Only pay when SelfHeal delivers a slimmer payload.${c.reset}`);
   console.log();
 }
 

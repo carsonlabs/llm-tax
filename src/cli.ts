@@ -30,12 +30,14 @@ function parseArgs(args: string[]): {
   callsPerDay: number;
   json: boolean;
   dryRun: boolean;
+  share: boolean;
   help: boolean;
 } {
   let dir = ".";
   let callsPerDay = 1000;
   let json = false;
   let dryRun = false;
+  let share = false;
   let help = false;
 
   for (let i = 0; i < args.length; i++) {
@@ -46,6 +48,8 @@ function parseArgs(args: string[]): {
       json = true;
     } else if (arg === "--dry-run") {
       dryRun = true;
+    } else if (arg === "--share") {
+      share = true;
     } else if ((arg === "--calls" || arg === "-c") && args[i + 1]) {
       callsPerDay = parseInt(args[++i]);
     } else if (!arg.startsWith("-")) {
@@ -53,7 +57,7 @@ function parseArgs(args: string[]): {
     }
   }
 
-  return { dir: resolve(dir), callsPerDay, json, dryRun, help };
+  return { dir: resolve(dir), callsPerDay, json, dryRun, share, help };
 }
 
 function printHelp(): void {
@@ -67,6 +71,7 @@ function printHelp(): void {
     --calls, -c <n>   Estimated API calls per day (default: 1000)
     --json            Output as JSON instead of pretty terminal output
     --dry-run         Scan for API calls but don't hit them
+    --share           Get a shareable URL for your report (anonymized stats only)
     --help, -h        Show this help
 
   Examples:
@@ -74,11 +79,63 @@ function printHelp(): void {
     npx llm-tax . --calls 5000
     npx llm-tax ./api --json > report.json
     npx llm-tax . --dry-run
+    npx llm-tax . --share
 `);
 }
 
+/**
+ * Generate a short URL-safe scan ID. No PII — just a random handle so
+ * the user can later claim/share their report.
+ */
+function makeScanId(): string {
+  const chars = "abcdefghijkmnpqrstuvwxyz23456789";
+  let id = "";
+  for (let i = 0; i < 8; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return id;
+}
+
+/**
+ * Anonymously POST scan summary to telemetry endpoint. Fire-and-forget,
+ * never blocks output, no PII sent. Only summary aggregates: API count,
+ * waste %, monthly cost. Used to learn whether anyone is running --share.
+ */
+async function postShareTelemetry(
+  scanId: string,
+  apiCount: number,
+  avgWastePercent: number,
+  monthlyWasteUsd: number,
+): Promise<void> {
+  const endpoint =
+    process.env.LLM_TAX_TELEMETRY_URL ??
+    "https://selfheal.dev/api/llm-tax/anon-share";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scanId,
+        apiCount,
+        avgWastePercent,
+        monthlyWasteUsd,
+        platform: process.platform,
+        nodeVersion: process.version,
+        timestamp: new Date().toISOString(),
+      }),
+      signal: controller.signal,
+    });
+  } catch {
+    // Silently ignore — telemetry must never block CLI output.
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function main(): Promise<void> {
-  const { dir, callsPerDay, json, dryRun, help } = parseArgs(process.argv.slice(2));
+  const { dir, callsPerDay, json, dryRun, share, help } = parseArgs(process.argv.slice(2));
 
   if (help) {
     printHelp();
@@ -131,6 +188,25 @@ async function main(): Promise<void> {
   } else {
     printUnreachable(reports);
     printSummary(summary);
+  }
+
+  // Step 5: Optional --share — anonymized telemetry + claim URL
+  if (share) {
+    const scanId = makeScanId();
+    const monthlyWaste = (summary.monthlyWaste["claude-sonnet"] as number) ?? 0;
+    await postShareTelemetry(
+      scanId,
+      summary.totalApis,
+      summary.avgWastePercent,
+      monthlyWaste,
+    );
+    const shareUrl = `https://selfheal.dev/llm-tax/r/${scanId}`;
+    if (!json) {
+      console.log(`  \x1b[36m\x1b[1mShareable report:\x1b[0m \x1b[36m${shareUrl}\x1b[0m`);
+      console.log(`  \x1b[2mClaim it with your email to lock in the URL and get a one-time email when SelfHeal ships normalize-by-default for your worst offender.\x1b[0m\n`);
+    } else {
+      console.log(JSON.stringify({ shareUrl, scanId }));
+    }
   }
 }
 
